@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 from dataclasses import dataclass
+from typing import Iterable
 
 import click
 from rich import box
@@ -74,10 +75,27 @@ def _normalized_name(name: str) -> str:
     return "-".join(part for part in name.lower().replace("_", "-").replace(".", "-").split("-") if part)
 
 
-def installed_versions() -> dict[str, str]:
+def select_packages(requested: Iterable[str]) -> tuple[str, ...]:
+    """从官方目录中选择软件包，并拒绝未知名称。"""
+    requested_names = tuple(requested)
+    if not requested_names:
+        return YYDS_PACKAGES
+
+    catalog = {_normalized_name(name): name for name in YYDS_PACKAGES}
+    selected = {_normalized_name(name) for name in requested_names}
+    unknown = [name for name in requested_names if _normalized_name(name) not in catalog]
+    if unknown:
+        available = ", ".join(YYDS_PACKAGES)
+        raise click.ClickException(
+            f"不是官方 yyds 软件包：{', '.join(unknown)}。可选项：{available}"
+        )
+    return tuple(name for name in YYDS_PACKAGES if _normalized_name(name) in selected)
+
+
+def installed_versions(package_names: Iterable[str] = YYDS_PACKAGES) -> dict[str, str]:
     """读取官方目录中软件包的已安装版本；不从本地发现新包。"""
     data = _load_json(_run_pip("list", "--format=json"), "读取已安装软件包")
-    catalog = {_normalized_name(name): name for name in YYDS_PACKAGES}
+    catalog = {_normalized_name(name): name for name in package_names}
     installed: dict[str, str] = {}
     for item in data:
         name = item.get("name")
@@ -122,9 +140,10 @@ def _load_report(result: subprocess.CompletedProcess[str], action: str) -> list[
     return [item for item in install if isinstance(item, dict)]
 
 
-def check_packages(timeout: float) -> list[PackageStatus]:
+def check_packages(timeout: float, package_names: Iterable[str] = YYDS_PACKAGES) -> list[PackageStatus]:
     """检查官方目录中的包；未安装项同样会进入安装计划。"""
-    installed = installed_versions()
+    selected = tuple(package_names)
+    installed = installed_versions(selected)
     result = _run_pip(
         *_network_options(timeout, quiet=True),
         "install",
@@ -132,10 +151,10 @@ def check_packages(timeout: float) -> list[PackageStatus]:
         "--dry-run",
         "--report",
         "-",
-        *YYDS_PACKAGES,
+        *selected,
     )
     plan = _load_report(result, "检查 yyds 软件包")
-    catalog = {_normalized_name(name): name for name in YYDS_PACKAGES}
+    catalog = {_normalized_name(name): name for name in selected}
     targets: dict[str, str] = {}
     for item in plan:
         metadata = item.get("metadata")
@@ -149,12 +168,39 @@ def check_packages(timeout: float) -> list[PackageStatus]:
         if official_name:
             targets[official_name] = version
 
-    return [PackageStatus(name, installed.get(name), targets.get(name)) for name in YYDS_PACKAGES]
+    return [PackageStatus(name, installed.get(name), targets.get(name)) for name in selected]
 
 
 def action_packages(packages: list[PackageStatus]) -> list[PackageStatus]:
     """筛选需要安装或升级的软件包。"""
     return [package for package in packages if package.needs_action]
+
+
+def _status_name(package: PackageStatus, *, checked: bool) -> str:
+    if package.needs_install:
+        return "install"
+    if package.needs_upgrade:
+        return "upgrade"
+    if package.installed_version is None:
+        return "not_installed"
+    return "current" if checked else "installed"
+
+
+def print_json(packages: list[PackageStatus], *, checked: bool) -> None:
+    """以稳定的机器可读格式输出软件包状态。"""
+    payload = {
+        "checked": checked,
+        "packages": [
+            {
+                "name": package.name,
+                "installed_version": package.installed_version,
+                "available_version": package.target_version if package.needs_action else None,
+                "status": _status_name(package, checked=checked),
+            }
+            for package in packages
+        ],
+    }
+    click.echo(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 def _status_label(package: PackageStatus, *, checked: bool) -> str:
@@ -177,6 +223,7 @@ def package_table(packages: list[PackageStatus], *, checked: bool) -> Table:
         header_style="bold bright_cyan",
         border_style="bright_blue",
         expand=False,
+        min_width=58,
         pad_edge=True,
     )
     table.add_column("软件包", style="bold turquoise2")
@@ -239,6 +286,16 @@ def install_or_upgrade(packages: list[PackageStatus], *, dry_run: bool, timeout:
     result = subprocess.run(command, check=False)
     if result.returncode:
         raise click.ClickException("操作未完成。请查看上方 pip 输出后重试。")
+    installed_versions_after = installed_versions(package.name for package in packages)
+    mismatched = [
+        package.name
+        for package in packages
+        if installed_versions_after.get(package.name) != package.target_version
+    ]
+    if mismatched:
+        raise click.ClickException(
+            f"pip 已返回成功，但版本复核未通过：{', '.join(mismatched)}。请重新执行 check 确认。"
+        )
     installed = sum(package.needs_install for package in packages)
     upgraded = sum(package.needs_upgrade for package in packages)
     console.print(f"[bold green]✔ 操作完成：安装 {installed} 个，升级 {upgraded} 个。[/bold green]")
@@ -254,34 +311,57 @@ def main(ctx: click.Context) -> None:
 
 
 @main.command("list")
-def list_packages() -> None:
+@click.option("--package", "requested", multiple=True, metavar="NAME", help="仅显示指定的官方软件包，可重复使用。")
+@click.option("--json", "as_json", is_flag=True, help="以 JSON 输出，便于脚本处理。")
+def list_packages(requested: tuple[str, ...], as_json: bool) -> None:
     """查看官方软件包目录及本地安装状态。"""
-    installed = installed_versions()
-    packages = [PackageStatus(name, installed.get(name)) for name in YYDS_PACKAGES]
-    print_catalog(packages, checked=False)
+    selected = select_packages(requested)
+    installed = installed_versions(selected)
+    packages = [PackageStatus(name, installed.get(name)) for name in selected]
+    if as_json:
+        print_json(packages, checked=False)
+    else:
+        print_catalog(packages, checked=False)
 
 
 @main.command("check")
 @click.option("--timeout", default=DEFAULT_TIMEOUT, show_default=True, type=click.FloatRange(min=0.1))
-def check(timeout: float) -> None:
+@click.option("--package", "requested", multiple=True, metavar="NAME", help="仅检查指定的官方软件包，可重复使用。")
+@click.option("--json", "as_json", is_flag=True, help="以 JSON 输出，便于脚本处理。")
+def check(timeout: float, requested: tuple[str, ...], as_json: bool) -> None:
     """检查官方软件包的安装与升级状态，不作修改。"""
-    with console.status(f"[bold blue]正在检查 {len(YYDS_PACKAGES)} 个官方 yyds 软件包…[/bold blue]"):
-        packages = check_packages(timeout)
-    print_catalog(packages, checked=True)
+    selected = select_packages(requested)
+    if as_json:
+        packages = check_packages(timeout, selected)
+        print_json(packages, checked=True)
+    else:
+        with console.status(f"[bold blue]正在检查 {len(selected)} 个官方 yyds 软件包…[/bold blue]"):
+            packages = check_packages(timeout, selected)
+        print_catalog(packages, checked=True)
 
 
 @main.command("update")
 @click.option("--yes", "assume_yes", is_flag=True, help="不询问确认，直接开始操作。")
 @click.option("--dry-run", is_flag=True, help="只展示安装与升级计划，不作任何修改。")
 @click.option("--timeout", default=DEFAULT_TIMEOUT, show_default=True, type=click.FloatRange(min=0.1))
-def update(assume_yes: bool = False, dry_run: bool = False, timeout: float = DEFAULT_TIMEOUT) -> None:
+@click.option("--package", "requested", multiple=True, metavar="NAME", help="仅处理指定的官方软件包，可重复使用。")
+def update(
+    assume_yes: bool = False,
+    dry_run: bool = False,
+    timeout: float = DEFAULT_TIMEOUT,
+    requested: tuple[str, ...] = (),
+) -> None:
     """一键安装缺失的官方包，并升级可更新的官方包。"""
-    with console.status(f"[bold blue]正在检查 {len(YYDS_PACKAGES)} 个官方 yyds 软件包…[/bold blue]"):
-        packages = check_packages(timeout)
+    selected = select_packages(requested)
+    with console.status(f"[bold blue]正在检查 {len(selected)} 个官方 yyds 软件包…[/bold blue]"):
+        packages = check_packages(timeout, selected)
     print_catalog(packages, checked=True)
     candidates = action_packages(packages)
     if not candidates:
-        console.print("[bold green]✔ 所有官方 yyds 软件包均已就绪。[/bold green]")
+        if len(selected) == len(YYDS_PACKAGES):
+            console.print("[bold green]✔ 所有官方 yyds 软件包均已就绪。[/bold green]")
+        else:
+            console.print("[bold green]✔ 所选官方 yyds 软件包均已就绪。[/bold green]")
         return
     if not dry_run and not assume_yes:
         click.confirm(f"确认安装 / 升级以上 {len(candidates)} 个软件包？", abort=True)

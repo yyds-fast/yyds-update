@@ -104,6 +104,12 @@ yyds-update check
 
 查询软件源并展示可安装、可升级状态，但不会进行安装。
 
+也可仅检查某一个官方包：
+
+```bash
+yyds-update check --package yyds-lock
+```
+
 ### 自动确认
 
 ```bash
@@ -111,6 +117,12 @@ yyds-update update --yes
 ```
 
 适合脚本、自动化任务或不需要人工确认的场景。
+
+仅操作指定包时，可重复传入 `--package`：
+
+```bash
+yyds-update update --package yyds-lock --package yyds-pip
+```
 
 ### 演练模式
 
@@ -128,6 +140,15 @@ yyds-update update --timeout 10
 ```
 
 默认超时为 5 秒，且不会自动重试。网络较慢时可适当增大；希望快速失败时可减小，例如 `--timeout 3`。
+
+### JSON 输出
+
+`list` 与 `check` 支持 `--json`，便于在 CI 或其他脚本中读取状态：
+
+```bash
+yyds-update check --json
+yyds-update list --package yyds-update --json
+```
 
 ### 命令别名
 
