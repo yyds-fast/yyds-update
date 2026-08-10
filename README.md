@@ -31,7 +31,7 @@ yyds-update
 | `yyds-pip` | pip 镜像源管理工具 |
 | `yyds-pip-audit` | Python 软件包审计工具 |
 | `yyds-stream-tap` | 流式输出处理工具 |
-| `yyds-update` | 本工具 |
+| `yyds-update` | yyds 工具链一键安装与升级工具 |
 
 目录定义在 [yyds_update/packages.py](yyds_update/packages.py)。新增官方包时，只需将包名加入该列表；工具会自动按字母顺序检查、显示和处理。
 
