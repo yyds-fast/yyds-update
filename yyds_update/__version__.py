@@ -1,6 +1,6 @@
 __title__ = "yyds-update"
 __description__ = "A convenient command-line tool for updating yyds Python packages."
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 __author__ = "yyds-fast"
 __author_email__ = "yyds.fast@gmail.com"
 __url__ = "https://github.com/yyds-fast/yyds-update"

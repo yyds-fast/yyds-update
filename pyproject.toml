@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yyds-update"
-version = "0.1.2"
+dynamic = ["version"]
 description = "一键检查并升级当前环境中的 yyds Python 软件包"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -32,3 +32,6 @@ yyds_update = "yyds_update.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["yyds_update*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "yyds_update.__version__.__version__"}

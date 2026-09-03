@@ -10,7 +10,7 @@ from yyds_update.packages import YYDS_PACKAGES
 class OfficialCatalogTests(unittest.TestCase):
     def test_catalog_is_sorted_alphabetically(self) -> None:
         self.assertEqual(YYDS_PACKAGES, tuple(sorted(YYDS_PACKAGES, key=str.lower)))
-        self.assertEqual(len(YYDS_PACKAGES), 8)
+        self.assertEqual(len(YYDS_PACKAGES), 9)
 
     def test_select_packages_normalizes_names_and_preserves_catalog_order(self) -> None:
         self.assertEqual(
@@ -50,8 +50,8 @@ class UpgradePlanTests(unittest.TestCase):
 
         self.assertEqual([package.name for package in packages], list(YYDS_PACKAGES))
         self.assertEqual(packages[1], PackageStatus("yyds-lock", None, "0.3.0"))
-        self.assertEqual(packages[4], PackageStatus("yyds-pip", "0.4.7", "0.5.0"))
-        self.assertEqual(action_packages(packages), [packages[1], packages[4]])
+        self.assertEqual(packages[5], PackageStatus("yyds-pip", "0.4.7", "0.5.0"))
+        self.assertEqual(action_packages(packages), [packages[1], packages[5]])
         command = run_pip.call_args_list[1].args
         self.assertEqual(command[-len(YYDS_PACKAGES):], YYDS_PACKAGES)
         self.assertEqual(command[command.index("--retries") + 1], "0")

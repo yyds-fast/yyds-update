@@ -7,6 +7,7 @@ YYDS_PACKAGES = tuple(
             "yyds-fswatch",
             "yyds-lock",
             "yyds-logger",
+            "yyds-mdns",
             "yyds-notify-os",
             "yyds-pip",
             "yyds-pip-audit",

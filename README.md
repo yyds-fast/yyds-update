@@ -27,6 +27,7 @@ yyds-update
 | `yyds-fswatch` | 文件系统监听工具 |
 | `yyds-lock` | 锁与并发控制工具 |
 | `yyds-logger` | 日志工具 |
+| `yyds-mdns` | mDNS 服务注册与发现工具 |
 | `yyds-notify-os` | 操作系统通知工具 |
 | `yyds-pip` | pip 镜像源管理工具 |
 | `yyds-pip-audit` | Python 软件包审计工具 |
@@ -180,10 +181,9 @@ python -m unittest discover -s tests -v
 
 构建发布包前，请先确保测试通过。项目提供 [build.sh](build.sh) 作为构建并上传脚本；它会清理旧产物、构建包，并将 `dist/` 内容上传到当前 twine 配置的仓库。发布前请仔细确认目标仓库和版本号。
 
-版本信息需保持同步：
+版本信息统一在单一位置维护：
 
-- `pyproject.toml` 的 `project.version`
-- `yyds_update/__version__.py` 的 `__version__`
+- `yyds_update/__version__.py` 的 `__version__`（`pyproject.toml` 会自动动态读取）
 
 ## 设计说明
 
