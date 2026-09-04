@@ -28,6 +28,7 @@ yyds-update
 | `yyds-lock` | 锁与并发控制工具 |
 | `yyds-logger` | 日志工具 |
 | `yyds-mdns` | mDNS 服务注册与发现工具 |
+| `yyds-net-scan` | 网络扫描与设备发现工具 |
 | `yyds-notify-os` | 操作系统通知工具 |
 | `yyds-pip` | pip 镜像源管理工具 |
 | `yyds-pip-audit` | Python 软件包审计工具 |
