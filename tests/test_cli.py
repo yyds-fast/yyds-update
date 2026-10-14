@@ -10,7 +10,7 @@ from yyds_update.packages import YYDS_PACKAGES
 class OfficialCatalogTests(unittest.TestCase):
     def test_catalog_is_sorted_alphabetically(self) -> None:
         self.assertEqual(YYDS_PACKAGES, tuple(sorted(YYDS_PACKAGES, key=str.lower)))
-        self.assertEqual(len(YYDS_PACKAGES), 10)
+        self.assertEqual(len(YYDS_PACKAGES), 11)
 
     def test_select_packages_normalizes_names_and_preserves_catalog_order(self) -> None:
         self.assertEqual(

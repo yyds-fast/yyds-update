@@ -32,6 +32,7 @@ yyds-update
 | `yyds-notify-os` | 操作系统通知工具 |
 | `yyds-pip` | pip 镜像源管理工具 |
 | `yyds-pip-audit` | Python 软件包审计工具 |
+| `yyds-port` | 端口管理与诊断工具 |
 | `yyds-stream-tap` | 流式输出处理工具 |
 | `yyds-update` | yyds 工具链一键安装与升级工具 |
 

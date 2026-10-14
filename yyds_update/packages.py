@@ -12,6 +12,7 @@ YYDS_PACKAGES = tuple(
             "yyds-notify-os",
             "yyds-pip",
             "yyds-pip-audit",
+            "yyds-port",
             "yyds-stream-tap",
             "yyds-update",
         ),
